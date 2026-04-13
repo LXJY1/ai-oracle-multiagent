@@ -1,11 +1,11 @@
 # AI Oracle Multi-Agent
 
-## 贡献者
+## contributors
 
-- [@Miracold](https://github.com/Miracold) - Contract 开发
-- [@jmczhc](https://github.com/jmczhc) - AI Service 开发
-- [@Mingyue13](https://github.com/Mingyue13) - Frontend 开发
-- [@LXJY1](https://github.com/LXJY1) - Agent Listener 开发
+- [@Miracold](https://github.com/Miracold) - Contract developer
+- [@jmczhc](https://github.com/jmczhc) - AI Service developer
+- [@Mingyue13](https://github.com/Mingyue13) - Frontend developer
+- [@LXJY1](https://github.com/LXJY1) - Agent Listener developer
 
 ---
 
