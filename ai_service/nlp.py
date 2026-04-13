@@ -4,6 +4,7 @@ import re
 import requests
 import openai
 import anthropic
+import google.generativeai as genai
 
 from config import settings
 
@@ -110,6 +111,82 @@ def _call_openai(prompt: str) -> str | None:
         return None
 
 
+def _call_google(prompt: str) -> str | None:
+    try:
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
+        model = genai.GenerativeModel(settings.GOOGLE_MODEL)
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception:
+        return None
+
+
+def _call_minimax(prompt: str) -> str | None:
+    try:
+        resp = requests.post(
+            "https://api.minimax.chat/v1/text/chatcompletion_v2",
+            headers={
+                "Authorization": f"Bearer {settings.MINIMAX_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": settings.MINIMAX_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 10,
+                "temperature": 0,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return None
+
+
+def _call_kimi(prompt: str) -> str | None:
+    try:
+        resp = requests.post(
+            "https://api.moonshot.cn/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.KIMI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": settings.KIMI_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 10,
+                "temperature": 0,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return None
+
+
+def _call_zhipu(prompt: str) -> str | None:
+    try:
+        resp = requests.post(
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.ZHIPU_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": settings.ZHIPU_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 10,
+                "temperature": 0,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return None
+
+
 def extract_symbol_llm(query: str) -> str | None:
     prompt = PROMPT.format(query=query)
     provider = settings.LLM_PROVIDER
@@ -118,6 +195,14 @@ def extract_symbol_llm(query: str) -> str | None:
         raw = _call_ollama(prompt)
     elif provider == "claude":
         raw = _call_claude(prompt)
+    elif provider == "google":
+        raw = _call_google(prompt)
+    elif provider == "minimax":
+        raw = _call_minimax(prompt)
+    elif provider == "kimi":
+        raw = _call_kimi(prompt)
+    elif provider == "zhipu":
+        raw = _call_zhipu(prompt)
     else:
         raw = _call_openai(prompt)
 
@@ -172,6 +257,77 @@ def chat_with_llm(message: str) -> str | None:
             )
             return msg.content[0].text.strip()
 
+        elif provider == "google":
+            genai.configure(api_key=settings.GOOGLE_API_KEY)
+            model = genai.GenerativeModel(settings.GOOGLE_MODEL)
+            response = model.generate_content(
+                f"{_SYSTEM_PROMPT}\n\nUser: {message}"
+            )
+            return response.text.strip()
+
+        elif provider == "minimax":
+            resp = requests.post(
+                "https://api.minimax.chat/v1/text/chatcompletion_v2",
+                headers={
+                    "Authorization": f"Bearer {settings.MINIMAX_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.MINIMAX_MODEL,
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": message},
+                    ],
+                    "max_tokens": 200,
+                    "temperature": 0.7,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+
+        elif provider == "kimi":
+            resp = requests.post(
+                "https://api.moonshot.cn/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.KIMI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.KIMI_MODEL,
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": message},
+                    ],
+                    "max_tokens": 200,
+                    "temperature": 0.7,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+
+        elif provider == "zhipu":
+            resp = requests.post(
+                "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.ZHIPU_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.ZHIPU_MODEL,
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": message},
+                    ],
+                    "max_tokens": 200,
+                    "temperature": 0.7,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+
         else:  # openai
             client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
             resp = client.chat.completions.create(
@@ -198,6 +354,10 @@ def parse_query(query: str) -> str:
         provider == "ollama"
         or (provider == "claude" and bool(settings.ANTHROPIC_API_KEY))
         or (provider == "openai" and bool(settings.OPENAI_API_KEY))
+        or (provider == "google" and bool(settings.GOOGLE_API_KEY))
+        or (provider == "minimax" and bool(settings.MINIMAX_API_KEY))
+        or (provider == "kimi" and bool(settings.KIMI_API_KEY))
+        or (provider == "zhipu" and bool(settings.ZHIPU_API_KEY))
     )
     if can_use_llm:
         llm_symbol = extract_symbol_llm(query)

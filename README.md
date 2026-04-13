@@ -33,10 +33,14 @@ Oracle Smart Contract (A)             ← deployed on Sepolia testnet
 - Python 3.10+
 - Node.js 18+ and npm (for contract)
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
-- **One** of the following LLM options (pick any):
-  - **Ollama** — free, runs locally. Install at https://ollama.com, then `ollama pull llama3.2:3b`
-  - **Claude** — get API key at https://console.anthropic.com
+- **One** of the following LLM providers:
   - **OpenAI** — get API key at https://platform.openai.com
+  - **Claude (Anthropic)** — get API key at https://console.anthropic.com
+  - **Google Gemini** — get API key at https://aistudio.google.com
+  - **Minimax** — get API key at https://www.minimaxi.com
+  - **Kimi (Moonshot AI)** — get API key at https://platform.moonshot.cn
+  - **Zhipu AI (智谱AI)** — get API key at https://open.bigmodel.cn
+  - **Ollama** — free, runs locally. Install at https://ollama.com, then `ollama pull llama3.2:3b`
 - A local HTTP proxy on port `7890` if Telegram is blocked in your region
 
 ---
@@ -51,34 +55,31 @@ cd ai-oracle-agent
 pip install -r requirements.txt
 ```
 
-### 2. Configure AI Service
+### 2. Configure AI Service (Interactive Setup)
 
 ```bash
-cp .env.example ai_service/.env   # or create ai_service/.env manually
+cd ai_service
+python setup_ai.py
 ```
 
-Edit `ai_service/.env` — choose **one** LLM provider:
+The setup script will guide you to select your AI provider and enter your API key. Supported providers:
 
-**Option A — Ollama (free, local):**
-```env
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2:3b
-# Run before starting: ollama pull llama3.2:3b
-```
+| # | Provider | API Key URL |
+|---|----------|-------------|
+| 1 | OpenAI | https://platform.openai.com/api-keys |
+| 2 | Claude (Anthropic) | https://console.anthropic.com/settings/keys |
+| 3 | Google Gemini | https://aistudio.google.com/app/apikey |
+| 4 | Minimax | https://www.minimaxi.com |
+| 5 | Kimi (Moonshot AI) | https://platform.moonshot.cn |
+| 6 | Zhipu AI (智谱AI) | https://open.bigmodel.cn |
+| 7 | Ollama (local, free) | https://ollama.com |
 
-**Option B — Claude (Anthropic):**
-```env
-LLM_PROVIDER=claude
-ANTHROPIC_API_KEY=sk-ant-...
-CLAUDE_MODEL=claude-haiku-4-5-20251001
-```
+Alternatively, create `ai_service/.env` manually:
 
-**Option C — OpenAI:**
 ```env
-LLM_PROVIDER=openai
+LLM_PROVIDER=openai          # openai | claude | google | minimax | kimi | zhipu | ollama
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Other settings (same for all providers):
