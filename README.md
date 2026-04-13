@@ -1,5 +1,14 @@
 # AI Oracle Agent
 
+## 贡献者
+
+- [@Miracold](https://github.com/Miracold) - Contract 开发
+- [@jmczhc](https://github.com/jmczhc) - AI Service 开发
+- [@Mingyue13](https://github.com/Mingyue13) - Frontend 开发
+- [@LXJY1](https://github.com/LXJY1) - Agent Listener 开发
+
+---
+
 An AI-powered oracle system that aggregates multi-source crypto data and derives robust reference prices with explainable reasoning. Users interact via a Telegram bot; queries flow through an on-chain Oracle contract, a Python agent listener, and an AI price service.
 
 ## System Architecture
