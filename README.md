@@ -1,4 +1,4 @@
-# AI Oracle Agent
+# AI Oracle Multi-Agent
 
 ## 贡献者
 
@@ -9,231 +9,188 @@
 
 ---
 
-An AI-powered oracle system that aggregates multi-source crypto data and derives robust reference prices with explainable reasoning. Users interact via a Telegram bot; queries flow through an on-chain Oracle contract, a Python agent listener, and an AI price service.
+An AI-powered oracle system that aggregates multi-source crypto data and derives robust reference prices with consensus reasoning. Queries flow through an on-chain Oracle contract, a Python agent listener, and an AI price service.
 
 ## System Architecture
 
 ```
-Telegram Bot (D)
-      │  natural language query
-      ▼
-AI Service - POST /predict (B)        ← OKX + CoinGecko price feeds
-      │  {result, confidence}
-      ▼
-Agent Listener (C)                    ← listens for on-chain OracleRequest events
-      │  fulfillRequest()
-      ▼
-Oracle Smart Contract (A)             ← deployed on Sepolia testnet
+┌─────────────┐
+│   Frontend  │  ← React dApp (MetaMask wallet)
+└──────┬──────┘
+       │  requestData()
+       ▼
+┌─────────────────────────────────────┐
+│     Oracle Smart Contract           │  ← Sepolia testnet
+│  (OpenZeppelin AccessControl)       │
+└──────┬──────────────────────────────┘
+       │  OracleRequest event
+       ▼
+┌─────────────────────────────────────┐
+│      Agent Listener                 │  ← Python (listening)
+│  - Multi-source price fetch         │
+│  - Consensus calculation            │
+│  - fulfillRequest()                 │
+└──────┬──────────────────────────────┘
+       │  AI Service
+       ▼
+┌─────────────────────────────────────┐
+│      AI Service                    │  ← FastAPI (port 8000)
+│  - Symbol extraction (LLM)         │
+│  - Price aggregation               │
+│  - Dashboard + Heartbeat API      │
+└─────────────────────────────────────┘
 ```
 
 ## Modules
 
 | Folder | Role |
 |--------|------|
-| `contract/` | Solidity Oracle contract (OpenZeppelin AccessControl) |
-| `agent_listener/` | Python agent — listens for events, calls AI service, writes results on-chain |
-| `ai_service/` | FastAPI service — NLP parsing + dual-source price aggregation |
-| `telegram_bot/` | Telegram bot — user-facing interface |
+| `contract/` | Solidity Oracle contract |
+| `agent_listener/` | Python agent — listens events, consensus, writes on-chain |
+| `ai_service/` | FastAPI — NLP parsing, price fetch, dashboard |
+| `frontend/` | React dApp — MetaMask wallet connection |
 
 ---
 
 ## Prerequisites
 
-- Python 3.10+
-- Node.js 18+ and npm (for contract)
-- A Telegram bot token from [@BotFather](https://t.me/BotFather)
-- **One** of the following LLM providers:
-  - **OpenAI** — get API key at https://platform.openai.com
-  - **Claude (Anthropic)** — get API key at https://console.anthropic.com
-  - **Google Gemini** — get API key at https://aistudio.google.com
-  - **Minimax** — get API key at https://www.minimaxi.com
-  - **Kimi (Moonshot AI)** — get API key at https://platform.moonshot.cn
-  - **Zhipu AI (智谱AI)** — get API key at https://open.bigmodel.cn
-  - **Ollama** — free, runs locally. Install at https://ollama.com, then `ollama pull llama3.2:3b`
-- A local HTTP proxy on port `7890` if Telegram is blocked in your region
+- Python 3.13+
+- Node.js 18+ and npm
+- MetaMask browser extension
+- **One** LLM provider (optional for symbol extraction):
+  - **OpenAI** — https://platform.openai.com
+  - **Claude (Anthropic)** — https://console.anthropic.com
+  - **Google Gemini** — https://aistudio.google.com
+  - **Minimax** — https://www.minimaxi.com
+  - **Kimi (Moonshot AI)** — https://platform.moonshot.cn
+  - **Zhipu AI** — https://open.bigmodel.cn
+  - **Ollama** (local, free) — https://ollama.com
 
 ---
 
 ## Setup
 
-### 1. Clone and install Python dependencies
+### 1. Clone and install dependencies
 
 ```bash
-git clone <repo-url>
-cd ai-oracle-agent
-pip install -r requirements.txt
+git clone https://github.com/LXJY1/ai-oracle-multiagent.git
+cd ai-oracle-multiagent
 ```
 
-### 2. Configure AI Service (Interactive Setup)
+### 2. Configure AI Service
 
 ```bash
 cd ai_service
-python setup_ai.py
+cp .env.example .env
 ```
 
-The setup script will guide you to select your AI provider and enter your API key. Supported providers:
-
-| # | Provider | API Key URL |
-|---|----------|-------------|
-| 1 | OpenAI | https://platform.openai.com/api-keys |
-| 2 | Claude (Anthropic) | https://console.anthropic.com/settings/keys |
-| 3 | Google Gemini | https://aistudio.google.com/app/apikey |
-| 4 | Minimax | https://www.minimaxi.com |
-| 5 | Kimi (Moonshot AI) | https://platform.moonshot.cn |
-| 6 | Zhipu AI (智谱AI) | https://open.bigmodel.cn |
-| 7 | Ollama (local, free) | https://ollama.com |
-
-Alternatively, create `ai_service/.env` manually:
-
+Edit `ai_service/.env`:
 ```env
-LLM_PROVIDER=openai          # openai | claude | google | minimax | kimi | zhipu | ollama
+LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
 ```
 
-Other settings (same for all providers):
-```env
-PRICE_CACHE_TTL=5
-SYMBOL_CACHE_TTL=1800
-CONFIDENCE_THRESHOLD=0.80
+Or run interactive setup:
+```bash
+python setup_ai.py
 ```
 
 ### 3. Configure Agent Listener
 
+```bash
+cd agent_listener
+cp .env.example .env
+```
+
 Edit `agent_listener/.env`:
-
 ```env
-RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
-CONTRACT_ADDRESS=0x7A2127475B453aDb46CB83Bb1075854aa43a7738
-AGENT_PRIVATE_KEY=0x...           # agent wallet private key (must have AGENT_ROLE + Sepolia ETH)
-ABI_PATH=Oracle_abi.json
+RPC_URL=https://ethereum-sepolia.publicnode.com
+CONTRACT_ADDRESS=0xB3AffBbe601a3D41a1fc8e7ec817e5EdC34d4f48
+AGENT_PRIVATE_KEY=0x...           # Must have AGENT_ROLE + Sepolia ETH
 AI_SERVICE_URL=http://localhost:8000/predict
+HEARTBEAT_URL=http://localhost:8000/api/heartbeat
 ```
 
-**Getting a free Sepolia RPC URL:** Sign up at [Infura](https://infura.io) or [Alchemy](https://alchemy.com), create a project, and copy the Sepolia HTTPS endpoint.
-
-### 4. Grant AGENT_ROLE to your agent wallet
-
-Generate a new agent wallet (run once):
+### 4. Configure Frontend
 
 ```bash
-python -c "
-from eth_account import Account
-import secrets
-key = '0x' + secrets.token_hex(32)
-acct = Account.from_key(key)
-print('Private key:', key)
-print('Address:    ', acct.address)
-"
+cd frontend
+cp .env.example .env  # if needed
+npm install
 ```
 
-Put the private key in `agent_listener/.env` under `AGENT_PRIVATE_KEY`, then grant it the role:
+The contract address and chain ID are configured in `src/App.js`:
+```javascript
+const CONTRACT_ADDRESS = '0xB3AffBbe601a3D41a1fc8e7ec817e5EdC34d4f48';
+const TARGET_CHAIN_ID = 11155111;  // Sepolia
+```
+
+### 5. Grant Agent Permissions
+
+If deploying a new agent wallet:
 
 ```bash
-python add_agent.py
+cd contract
+cp .env.example .env
+# Edit .env with your deployer private key
+
+# Grant AGENT_ROLE
+node scripts/add_agent.cjs <agent_address>
 ```
 
-> `add_agent.py` uses the contract deployer key to call `addAgent()` on the Oracle contract. Make sure the deployer key in `contract/.env` is correct.
+### 6. Fund Agent Wallet
 
-### 5. Fund the agent wallet with Sepolia ETH
+The agent needs Sepolia ETH for gas. Get testnet ETH from:
+- https://faucet.sepolia.dev/
+- https://www.alchemy.com/faucets/ethereum-sepolia
 
-The agent needs ETH to pay gas for `fulfillRequest()` transactions. Get test ETH from:
-- [Chainlink Faucet](https://faucet.chain.link/sepolia)
-- [Alchemy Faucet](https://sepoliafaucet.com)
-
-Minimum recommended: **0.02 ETH**
-
-### 6. Configure Telegram Bot
-
-```bash
-cp telegram_bot/.env.example telegram_bot/.env
-```
-
-Edit `telegram_bot/.env`:
-
-```env
-TELEGRAM_BOT_TOKEN=123456789:ABCdef...   # from @BotFather
-AI_SERVICE_URL=http://localhost:8000/predict
-```
-
-> If you are in a region where Telegram is blocked, the bot automatically uses a local HTTP proxy at `http://127.0.0.1:7890`. Make sure your proxy (e.g. Clash) is running.
-
-### 7. Configure the Contract (for redeployment only)
-
-```bash
-cp contract/.env.example contract/.env
-```
-
-Edit `contract/.env`:
-
-```env
-SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
-DEPLOYER_PRIVATE_KEY=your-deployer-private-key-without-0x-prefix
-```
+Minimum recommended: **0.01 ETH**
 
 ---
 
 ## Running the System
 
-Open **3 terminals**:
+Open **2 terminals**:
 
 ```bash
 # Terminal 1 — AI Service (port 8000)
-cd ai_service && python main.py
+cd ai_service && python3 main.py
 
 # Terminal 2 — Agent Listener
-cd agent_listener && python listener.py
-
-# Terminal 3 — Telegram Bot
-cd telegram_bot && pip install -r requirements.txt && python bot.py
+cd agent_listener && python3 listener.py
 ```
 
-Verify the AI service is up:
+Then start frontend:
 ```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"query": "ETH price"}'
+# Terminal 3
+cd frontend && npm start
 ```
 
-Expected response:
-```json
-{
-  "result": {
-    "symbol": "ETH",
-    "price": 2231.45,
-    "currency": "USD",
-    "sources": ["okx", "coingecko"],
-    "timestamp": "2026-04-09T12:00:00Z"
-  },
-  "confidence": 0.95
-}
-```
+Access:
+- Frontend: http://localhost:3000
+- Agent Dashboard: http://localhost:8000/
 
 ---
 
-## Using the Telegram Bot
+## Test AI Service
 
-Find your bot on Telegram and send:
-
-| Input | Description |
-|-------|-------------|
-| `ETH price` | Natural language query |
-| `What is Bitcoin worth?` | Full sentence |
-| `/price SOL` | Command-style query |
-| `/start` | Welcome message |
-| `/help` | Help message |
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"query": "BTC price"}'
+```
 
 ---
 
 ## Contract Details
 
 - **Network:** Sepolia testnet
-- **Address:** `0x7A2127475B453aDb46CB83Bb1075854aa43a7738`
+- **Address:** `0xB3AffBbe601a3D41a1fc8e7ec817e5EdC34d4f48`
 - **ABI:** `agent_listener/Oracle_abi.json`
 
 Key functions:
-- `requestData(string query)` — submit an oracle request (emits `OracleRequest`)
-- `fulfillRequest(uint256 requestId, bytes result, bytes signature)` — agent-only, write result on-chain (emits `OracleResponse`)
+- `requestData(string query)` — submit request (emits `OracleRequest`)
+- `fulfillRequest(uint256 requestId, bytes result, bytes signature)` — agent-only
 - `getResult(uint256 requestId)` — read fulfilled result
 - `addAgent(address)` — admin-only, grant AGENT_ROLE
 
@@ -243,20 +200,19 @@ Key functions:
 
 BTC · ETH · SOL · BNB · MATIC · AVAX · DOGE · ADA · LINK · DOT · XRP
 
-Price data aggregated from **OKX** and **CoinGecko**. Confidence score reflects agreement between sources:
+Price data from **OKX**, **CoinGecko**, **CoinPaprika**, **CoinCap**. Confidence based on cross-source deviation.
 
-| Source agreement | Confidence |
-|-----------------|-----------|
-| Both sources, deviation < 0.5% | 0.95 |
-| Both sources, deviation < 2% | 0.85 |
-| Both sources, deviation < 5% | 0.70 |
-| Single source only | 0.80 |
+| Deviation | Confidence |
+|-----------|------------|
+| < 0.5% | 0.95 |
+| < 2% | 0.85 |
+| < 5% | 0.70 |
+| Single source | 0.80 |
 
 ---
 
 ## Security Notes
 
-- **Never commit `.env` files** — all `.env` files are in `.gitignore`
-- Use `.env.example` files as templates for teammates
-- The agent wallet private key should only hold small amounts of testnet ETH
-- Rotate the deployer private key if it was ever committed to git history
+- **Never commit `.env` files** — all are in `.gitignore`
+- Agent wallet should only hold testnet ETH
+- Use `.env.example` as templates for teammates
